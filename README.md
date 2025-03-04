@@ -34,7 +34,7 @@ Example:
 ```
 Where:
 - Name: Field name
-   - >: Nested field (embedded document)
+   - ` > `: Nested field (embedded document)
 - Type: Data type of the field
 - Count: Number of objects that have this field
 - Occurrence[%]: Percentage of how many objects have this field
