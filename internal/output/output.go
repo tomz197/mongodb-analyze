@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/tomz197/mongodb-analyze/internal/analyze"
+	"github.com/tomz197/mongodb-analyze/internal/common"
 )
 
-func PrintTable(root *analyze.RootObject) {
+func PrintTable(root *common.RootObject) {
 	/*
-		Name | Type | Count | Percent
-		------------------------------
+		Name | ...(subobjects)... | Type | Count | Occurrence[%]
+		----------------------------------------------------------
 		...
 	*/
 
@@ -31,7 +31,7 @@ func PrintTable(root *analyze.RootObject) {
 	fmt.Println()
 }
 
-func printHeader(root *analyze.RootObject) {
+func printHeader(root *common.RootObject) {
 	fillerAfter := ""
 	for i := 1; i < root.Depth; i++ {
 		fillerAfter += " | "
@@ -43,7 +43,7 @@ func printHeader(root *analyze.RootObject) {
 	fmt.Printf(" %-*s%s | %-20s | %-10s | %-15s\n", root.NameLens[root.CurrDepth], "Name", fillerAfter, "Type", "Count", "Occurrence[%]")
 }
 
-func printSeparator(root *analyze.RootObject) {
+func printSeparator(root *common.RootObject) {
 	filler := ""
 	for i := 0; i < root.Depth; i++ {
 		filler += "---"
@@ -54,7 +54,7 @@ func printSeparator(root *analyze.RootObject) {
 	fmt.Printf("%s------------------------------------------------------\n", filler)
 }
 
-func printRow(root *analyze.RootObject, stats *analyze.ObjectStats) {
+func printRow(root *common.RootObject, stats *common.ObjectStats) {
 	root.CurrDepth++
 	defer func() {
 		root.CurrDepth--
@@ -113,8 +113,34 @@ func getSorted[T any](m map[string]T) []kv[T] {
 	return res
 }
 
-func PrintJSON(anal *analyze.RootObject) {
+func PrintJSON(anal *common.RootObject) {
 	out, _ := json.MarshalIndent(anal.Stats, "", "  ")
 
 	fmt.Println(string(out))
+}
+
+func GetPrintProgress(total int64) (func(int64), func(int64)) {
+	percOfDocs := total / 100
+
+	printProgress := func(processed int64) {
+		bar := ""
+		for range processed / (percOfDocs * 5) {
+			bar += "="
+		}
+		if len(bar) < 20 {
+			bar += ">"
+		}
+		fmt.Printf("\r Progress [%-20s] %d%% (%d/%d)", bar, processed/percOfDocs, processed, total)
+	}
+
+	return func(processed int64) {
+			if processed%percOfDocs != 0 {
+				return
+			}
+			printProgress(processed)
+		}, func(processed int64) {
+			printProgress(processed)
+			fmt.Println()
+			fmt.Println("Done")
+		}
 }

@@ -3,6 +3,7 @@ package analyze
 import (
 	"errors"
 
+	"github.com/tomz197/mongodb-analyze/internal/common"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -11,29 +12,7 @@ var (
 	ErrInvalidDocument = errors.New("invalid document")
 )
 
-// ObjectStats maps field names to their type statistics
-type ObjectStats map[string][]TypeStats
-
-// RootObject is has more statistics/flags
-type RootObject struct {
-	CurrDepth    int   // NOTE: current depth of the document
-	Depth        int   // NOTE: largest depth of the document
-	MaxDepth     *int  // NOTE: max depth to analyze
-	NameLens     []int // NOTE: length of field names
-	TotalObjects int64 // NOTE: total number of objects
-	Stats        ObjectStats
-}
-
-// TypeStats stores statistics about a specific value type
-type TypeStats struct {
-	Type    string       `json:"Type"`
-	Count   int64        `json:"Count"`
-	Props   *ObjectStats `json:"Props,omitempty"`
-	Items   *[]TypeStats `json:"Items,omitempty"`
-	Subtype *string      `json:"Subtype,omitempty"`
-}
-
-func AnalyzeBSON(root *RootObject, elements []bson.RawElement, stats *ObjectStats) error {
+func analyze(root *common.RootObject, elements []bson.RawElement, stats *common.ObjectStats) error {
 	root.CurrDepth++
 	defer func() {
 		root.CurrDepth--
@@ -52,8 +31,13 @@ func AnalyzeBSON(root *RootObject, elements []bson.RawElement, stats *ObjectStat
 		key := elm.Key()
 		t := elm.Value().Type.String()
 
+		t, err := handleBinarySubtype(elm)
+		if err != nil {
+			return ErrInvalidDocument
+		}
+
 		if _, ok := (*stats)[key]; !ok {
-			(*stats)[key] = []TypeStats{}
+			(*stats)[key] = []common.TypeStats{}
 
 			if len(key) > root.NameLens[root.CurrDepth-1] {
 				root.NameLens[root.CurrDepth-1] = len(key)
@@ -79,16 +63,15 @@ func AnalyzeBSON(root *RootObject, elements []bson.RawElement, stats *ObjectStat
 			continue
 		}
 
-		var props *ObjectStats = nil
+		var props *common.ObjectStats = nil
 		// var items *ObjectStats = nil
-		// var subType *ObjectStats = nil
 
-		props, err := handleEmbeddedDocument(root, elm, nil)
+		props, err = handleEmbeddedDocument(root, elm, nil)
 		if err != nil {
 			return err
 		}
 
-		(*stats)[key] = append((*stats)[key], TypeStats{
+		(*stats)[key] = append((*stats)[key], common.TypeStats{
 			Type:  t,
 			Count: 1,
 			Props: props,
@@ -98,13 +81,13 @@ func AnalyzeBSON(root *RootObject, elements []bson.RawElement, stats *ObjectStat
 	return nil
 }
 
-func handleEmbeddedDocument(root *RootObject, element bson.RawElement, props *ObjectStats) (*ObjectStats, error) {
+func handleEmbeddedDocument(root *common.RootObject, element bson.RawElement, props *common.ObjectStats) (*common.ObjectStats, error) {
 	if element.Value().Type != bson.TypeEmbeddedDocument {
 		return nil, nil
 	}
 
 	if props == nil {
-		props = &ObjectStats{}
+		props = &common.ObjectStats{}
 	}
 
 	doc, ok := element.Value().DocumentOK()
@@ -117,10 +100,43 @@ func handleEmbeddedDocument(root *RootObject, element bson.RawElement, props *Ob
 		return nil, err
 	}
 
-	err = AnalyzeBSON(root, elements, props)
+	err = analyze(root, elements, props)
 	if err != nil {
 		return nil, err
 	}
 
 	return props, nil
+}
+
+var bsonBinarySubtypes = map[byte]string{
+	0x00: "Generic binary subtype",
+	0x01: "Function",
+	0x02: "Binary (old)",
+	0x03: "UUID (old)",
+	0x04: "UUID",
+	0x05: "MD5",
+	0x06: "Encrypted BSON value",
+	0x07: "Compressed time series data",
+	0x08: "Sensitive data",
+	0x09: "Vector data",
+	0x80: "User defined custom data",
+}
+
+func handleBinarySubtype(element bson.RawElement) (string, error) {
+	val := element.Value()
+	if val.Type != bson.TypeBinary {
+		return val.Type.String(), nil
+	}
+
+	subtype, _, ok := val.BinaryOK()
+	if !ok {
+		return "", ErrInvalidDocument
+	}
+
+	subtypeStr, ok := bsonBinarySubtypes[subtype]
+	if !ok {
+		return "Unknown", nil
+	}
+
+	return val.Type.String() + " - " + subtypeStr, nil
 }

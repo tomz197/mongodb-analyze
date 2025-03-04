@@ -45,7 +45,6 @@ From the above example, we can for example see that the field `tag` is inconsist
 > [!CAUTION]
 > At the moment the tool does not correctly analyzes following types:
 > - Array
-> - Binary subtypes
 
 ## Requirements
 - Go 1.23
