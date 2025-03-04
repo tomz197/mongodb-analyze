@@ -1,9 +1,10 @@
 # mongodb Analyze
 
-MongoDB analyze is a tool to analyze the MongoDB collection.
+MongoDB analyze(or shortly ✨***mongo-anal***✨) is a tool to analyze the MongoDB collection.
 It goes through entire collection and finds the data types of each field and the count of each data type.
 
 Results are displayed in a tabular format or json if flag is provided.
+
 Example:
 ```bash
  Name          |              | Type                 | Count      | Occurrence[%]
@@ -40,13 +41,14 @@ Where:
 
 From the above example, we can for example see that the field `tag` is inconsistent, it is sometimes a string and sometimes an array and was named `tags` in some cases.
 
+## Not implemented
+> [!CAUTION]
+> At the moment the tool does not correctly analyzes following types:
+> - Array
+> - Binary subtypes
+
 ## Requirements
 - Go 1.23
-
-## Installation
-```bash
-go get github.com/tomz197/mongodb-analyze
-```
 
 ## Usage
 > [!WARNING]
@@ -66,7 +68,7 @@ make build
 ./bin/cli -collection <collection_name>
 ```
 
-###Flags:
+### Flags:
 
 Required flags:
 - `-collection`: Name of the collection to analyze
