@@ -32,7 +32,7 @@ func All(options AllOptions) (*common.RootObject, error) {
 	root := &common.RootObject{
 		Depth:        0,
 		MaxDepth:     options.MaxDepth,
-		NameLens:     []int{},
+		MaxNameLen:   20,
 		MaxTypeLen:   20,
 		TotalObjects: 0,
 		Stats:        common.ObjectStats{},

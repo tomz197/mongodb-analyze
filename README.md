@@ -7,31 +7,33 @@ Results are displayed in a tabular format or json if flag is provided.
 
 Example:
 ```bash
- Name          |               | Type                 | Count      | Occurrence[%]
--------------------------------------------------------------------------------------
- _id           |               | objectID             | 9653       | 100.00
- commit        |               | null                 | 10         | 0.10
- commit        |               | string               | 2971       | 30.78
- date_created  |               | UTC datetime         | 9651       | 99.98
- date_finished |               | UTC datetime         | 8187       | 84.81
- description   |               | null                 | 223        | 2.31
- description   |               | string               | 9192       | 95.22
- git           |               | embedded document    | 6502       | 67.36
- >             | branch        | string               | 6500       | 67.34
- >             | commit        | string               | 6502       | 67.36
- >             | remote_url    | string               | 6502       | 67.36
- graph         |               | embedded document    | 2956       | 30.62
- >             | aug_graph     | binary               | 73         | 0.76
- >             | aug_node_map  | binary               | 72         | 0.75
- >             | aug_nodes     | array                | 88         | 0.91
- >             | aug_nodes     | binary               | 111        | 1.15
- >             | graph         | binary               | 2956       | 30.62
- >             | nodes         | array                | 2827       | 29.29
- hostname      |               | string               | 9494       | 98.35
- tag           |               | string               | 139        | 1.44
- tag           |               | array[string]        | 2838       | 29.40
- tags          |               | array[string]        | 6155       | 63.76
- tags          |               | array[]              | 318        | 3.29
+ Name            | Type                          | Count      | Occurrence[%]
+-------------------------------------------------------------------------------
+ _id             | objectID                      | 9653       | 100.00
+ commit          | null                          | 10         | 0.10
+ commit          | string                        | 2971       | 30.78
+ date_created    | UTC datetime                  | 9651       | 99.98
+ date_finished   | UTC datetime                  | 8187       | 84.81
+ description     | null                          | 223        | 2.31
+ description     | string                        | 9192       | 95.22
+ git             | embedded document             | 6502       | 67.36
+  > branch       | string                        | 6500       | 67.34
+  > commit       | string                        | 6502       | 67.36
+  > remote_url   | string                        | 6502       | 67.36
+ graph           | embedded document             | 2956       | 30.62
+  > aug_graph    | binary                        | 73         | 0.76
+  > aug_node_map | binary                        | 72         | 0.75
+  > aug_nodes    | array[array]                  | 18         | 0.19
+  > aug_nodes    | binary                        | 111        | 1.15
+  > aug_nodes    | array[string]                 | 70         | 0.73
+  > graph        | binary                        | 2956       | 30.62
+  > nodes        | array[string]                 | 2827       | 29.29
+ hostname        | string                        | 9494       | 98.35
+ tag             | string                        | 139        | 1.44
+ tag             | array[string]                 | 2838       | 29.40
+ tag             | array[32-bit integer, string] | 4          | 0.04
+ tags            | array[string]                 | 6155       | 63.76
+ tags            | array[]                       | 318        | 3.29
 ```
 Where:
 - Name: Field name
@@ -46,7 +48,7 @@ From the above example, we can for example see that the field `tag` is inconsist
 ## Not implemented
 > [!CAUTION]
 > At the moment the tool does not correctly analyzes following types:
-> - Array of objects(Embedded document): it will not go through the fields of the embedded document
+> - Array of objects(Embedded document): it will not g1o through the fields of the embedded document
 
 ## Requirements
 - Go 1.23
@@ -79,3 +81,4 @@ Optional flags:
 - `-db`: Name of the database to analyze, default is `test`
 - `-json`: Output the results in json format
 - `-depth`: Maximum depth to analyze nested fields
+- `-output`: Output file name, default is `stdout`

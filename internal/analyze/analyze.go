@@ -26,7 +26,6 @@ func analyze(root *common.RootObject, elements []bson.RawElement, stats *common.
 
 	if root.CurrDepth > root.Depth {
 		root.Depth = root.CurrDepth
-		root.NameLens = append(root.NameLens, 0)
 	}
 
 	for _, elm := range elements {
@@ -46,8 +45,8 @@ func analyze(root *common.RootObject, elements []bson.RawElement, stats *common.
 		if _, ok := (*stats)[key]; !ok {
 			(*stats)[key] = []common.TypeStats{}
 
-			if len(key) > root.NameLens[root.CurrDepth-1] {
-				root.NameLens[root.CurrDepth-1] = len(key)
+			if len(key) > root.MaxNameLen {
+				root.MaxNameLen = len(key)
 			}
 		}
 

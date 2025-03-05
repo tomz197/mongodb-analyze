@@ -8,7 +8,7 @@ type RootObject struct {
 	CurrDepth    int   // NOTE: current depth of the document
 	Depth        int   // NOTE: largest depth of the document
 	MaxDepth     *int  // NOTE: max depth to analyze
-	NameLens     []int // NOTE: length of field names
+	MaxNameLen   int   // NOTE: length of the longest field name
 	MaxTypeLen   int   // NOTE: length of the longest type name
 	TotalObjects int64 // NOTE: total number of objects
 	Stats        ObjectStats

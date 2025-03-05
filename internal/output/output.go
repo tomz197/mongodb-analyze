@@ -3,61 +3,54 @@ package output
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 
 	"github.com/tomz197/mongodb-analyze/internal/common"
 )
 
-func PrintTable(root *common.RootObject) {
+func PrintTable(root *common.RootObject, out *os.File) {
 	/*
-		Name | ...(subobjects)... | Type | Count | Occurrence[%]
-		----------------------------------------------------------
+		Name | Type | Count | Occurrence[%]
+		-------------------------------------
 		...
 	*/
 
-	fmt.Println()
-	printHeader(root)
+	fmt.Fprintln(out, "MongoDB Document Analysis")
+	printHeader(root, out)
 
-	printSeparator(root)
+	printSeparator(root, out)
 
 	root.CurrDepth = -1
-	printRow(root, &root.Stats)
+	root.MaxNameLen += 3 * (root.Depth)
+	printRow(root, &root.Stats, out)
 
-	printSeparator(root)
+	printSeparator(root, out)
 
-	fmt.Printf("Total objects: %d\n", root.TotalObjects)
-	fmt.Printf("Max depth: %d\n", root.Depth)
-	fmt.Printf("Name lengths: %v\n", root.NameLens)
-	fmt.Println()
+	fmt.Fprintf(out, "Total objects: %d\n", root.TotalObjects)
+	fmt.Fprintf(out, "Max depth: %d\n", root.Depth)
+	fmt.Fprintln(out)
 }
 
-func printHeader(root *common.RootObject) {
-	fillerAfter := ""
-	for i := 1; i < root.Depth; i++ {
-		fillerAfter += " | "
-		for j := 0; j < int(root.NameLens[i]); j++ {
-			fillerAfter += " "
-		}
-	}
-
-	fmt.Printf(" %-*s%s | %-*s | %-10s | %-15s\n", root.NameLens[root.CurrDepth], "Name", fillerAfter, root.MaxTypeLen, "Type", "Count", "Occurrence[%]")
+func printHeader(root *common.RootObject, out *os.File) {
+	fmt.Fprintf(out, " %-*s | %-*s | %-10s | %-15s\n", root.MaxNameLen+3, "Name", root.MaxTypeLen, "Type", "Count", "Occurrence[%]")
 }
 
-func printSeparator(root *common.RootObject) {
+func printSeparator(root *common.RootObject, out *os.File) {
 	filler := ""
 	for i := 0; i < root.Depth; i++ {
 		filler += "---"
-		for j := 0; j < int(root.NameLens[i]); j++ {
-			filler += "-"
-		}
+	}
+	for j := 0; j < int(root.MaxNameLen); j++ {
+		filler += "-"
 	}
 	for j := 0; j < root.MaxTypeLen; j++ {
 		filler += "-"
 	}
-	fmt.Printf("%s----------------------------------\n", filler)
+	fmt.Fprintf(out, "%s----------------------------------\n", filler)
 }
 
-func printRow(root *common.RootObject, stats *common.ObjectStats) {
+func printRow(root *common.RootObject, stats *common.ObjectStats, out *os.File) {
 	root.CurrDepth++
 	defer func() {
 		root.CurrDepth--
@@ -68,29 +61,17 @@ func printRow(root *common.RootObject, stats *common.ObjectStats) {
 
 	fillerBefore := " "
 	for i := 0; i < int(root.CurrDepth); i++ {
-		fillerBefore += ">"
-		for j := 1; j < int(root.NameLens[i]); j++ {
-			fillerBefore += " "
-		}
-		fillerBefore += " | "
-	}
-
-	fillerAfter := ""
-	for i := root.CurrDepth + 1; i < root.Depth; i++ {
-		fillerAfter += " | "
-		for j := 0; j < int(root.NameLens[i]); j++ {
-			fillerAfter += " "
-		}
+		fillerBefore += " > "
 	}
 
 	for _, kv := range getSorted(*stats) {
 		for _, stat := range kv.Val {
 			percent := float64(stat.Count) / float64(root.TotalObjects) * 100
-			fmt.Printf("%s%-*s%s | %-*s | %-10d | %-15.2f\n",
-				fillerBefore, root.NameLens[root.CurrDepth], kv.Key, fillerAfter, root.MaxTypeLen, stat.Type, stat.Count, percent)
+			fmt.Fprintf(out, "%s%-*s | %-*s | %-10d | %-15.2f\n",
+				fillerBefore, root.MaxNameLen-(3*(root.CurrDepth+1)), kv.Key, root.MaxTypeLen, stat.Type, stat.Count, percent)
 
 			if stat.Props != nil {
-				printRow(root, stat.Props)
+				printRow(root, stat.Props, out)
 			}
 		}
 	}
@@ -116,10 +97,10 @@ func getSorted[T any](m map[string]T) []kv[T] {
 	return res
 }
 
-func PrintJSON(anal *common.RootObject) {
-	out, _ := json.MarshalIndent(anal.Stats, "", "  ")
+func PrintJSON(anal *common.RootObject, out *os.File) {
+	marshalled, _ := json.MarshalIndent(anal.Stats, "", "  ")
 
-	fmt.Println(string(out))
+	fmt.Fprintln(out, string(marshalled))
 }
 
 func GetPrintProgress(total int64) (func(int64), func(int64)) {
@@ -133,7 +114,7 @@ func GetPrintProgress(total int64) (func(int64), func(int64)) {
 		if len(bar) < 20 {
 			bar += ">"
 		}
-		fmt.Printf("\r Progress [%-20s] %d%% (%d/%d)", bar, processed/percOfDocs, processed, total)
+		fmt.Fprintf(os.Stdout, "\r Progress [%-20s] %d%% (%d/%d)", bar, processed/percOfDocs, processed, total)
 	}
 
 	return func(processed int64) {

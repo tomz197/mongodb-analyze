@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -32,6 +33,18 @@ func main() {
 		}
 	}()
 
+	file := os.Stdout
+	if flags.OutputFile != nil {
+		file, err = os.Create(*flags.OutputFile)
+		if err != nil {
+			log.Fatalf("Failed to create output file: %v", err)
+		}
+		defer func() {
+			fmt.Println("Result saved to", *flags.OutputFile)
+		}()
+		defer file.Close()
+	}
+
 	root, err := analyze.All(analyze.AllOptions{
 		Context:    ctx,
 		Collection: collection,
@@ -39,9 +52,9 @@ func main() {
 	})
 
 	if flags.PrintJSON {
-		output.PrintJSON(root)
+		output.PrintJSON(root, file)
 	} else {
-		output.PrintTable(root)
+		output.PrintTable(root, file)
 	}
 
 }

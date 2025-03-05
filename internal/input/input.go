@@ -11,6 +11,7 @@ type Flags struct {
 	DbName         string
 	PrintJSON      bool
 	MaxDepth       *int
+	OutputFile     *string
 }
 
 func ProcessFlags() (*Flags, error) {
@@ -20,6 +21,7 @@ func ProcessFlags() (*Flags, error) {
 	dbName := flag.String("db", "test", "MongoDB database name")
 	printJSON := flag.Bool("json", false, "Print output stats in JSON")
 	maxDepth := flag.Int("depth", 0, "Maximum depth to analyze (0 for all)")
+	outputFile := flag.String("output", "", "Output file")
 
 	// Parse command line flags
 	flag.Parse()
@@ -28,6 +30,10 @@ func ProcessFlags() (*Flags, error) {
 	if *collectionName == "" {
 		flag.Usage()
 		return nil, errors.New("missing collection name")
+	}
+
+	if *outputFile == "" {
+		outputFile = nil
 	}
 
 	if *maxDepth == 0 {
@@ -40,5 +46,6 @@ func ProcessFlags() (*Flags, error) {
 		DbName:         *dbName,
 		PrintJSON:      *printJSON,
 		MaxDepth:       maxDepth,
+		OutputFile:     outputFile,
 	}, nil
 }
