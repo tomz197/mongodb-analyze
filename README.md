@@ -35,7 +35,7 @@ Example:
 ```
 Where:
 - Name: Field name
-   - >: Nested field (embedded document)
+   - ` > `: Nested field (embedded document)
    - arrays are displayed as `array[type1, type2, ...]`
 - Type: Data type of the field
 - Count: Number of objects that have this field
