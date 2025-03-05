@@ -2,6 +2,8 @@ package analyze
 
 import (
 	"errors"
+	"fmt"
+	"sort"
 
 	"github.com/tomz197/mongodb-analyze/internal/common"
 	"go.mongodb.org/mongo-driver/bson"
@@ -36,6 +38,11 @@ func analyze(root *common.RootObject, elements []bson.RawElement, stats *common.
 			return ErrInvalidDocument
 		}
 
+		t, err = handleArray(elm)
+		if err != nil {
+			return ErrInvalidDocument
+		}
+
 		if _, ok := (*stats)[key]; !ok {
 			(*stats)[key] = []common.TypeStats{}
 
@@ -61,6 +68,10 @@ func analyze(root *common.RootObject, elements []bson.RawElement, stats *common.
 		}
 		if found {
 			continue
+		}
+
+		if len(t) > root.MaxTypeLen {
+			root.MaxTypeLen = len(t)
 		}
 
 		var props *common.ObjectStats = nil
@@ -139,4 +150,43 @@ func handleBinarySubtype(element bson.RawElement) (string, error) {
 	}
 
 	return val.Type.String() + " - " + subtypeStr, nil
+}
+
+func handleArray(arr bson.RawElement) (string, error) {
+	val := arr.Value()
+	if val.Type != bson.TypeArray {
+		return val.Type.String(), nil
+	}
+
+	arrRaw, ok := val.ArrayOK()
+	if !ok {
+		return "", ErrInvalidDocument
+	}
+
+	elements, err := arrRaw.Elements()
+	if err != nil {
+		return "", err
+	}
+
+	types := make(map[string]int)
+	for _, elm := range elements {
+		t := elm.Value().Type.String()
+		types[t]++
+	}
+
+	var keys []string
+	for k := range types {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var res string
+	for i, k := range keys {
+		res += k
+		if i < len(keys)-1 {
+			res += ", "
+		}
+	}
+
+	return fmt.Sprintf("%s[%s]", arr.Value().Type.String(), res), nil
 }

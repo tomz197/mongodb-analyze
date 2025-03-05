@@ -33,6 +33,7 @@ func All(options AllOptions) (*common.RootObject, error) {
 		Depth:        0,
 		MaxDepth:     options.MaxDepth,
 		NameLens:     []int{},
+		MaxTypeLen:   20,
 		TotalObjects: 0,
 		Stats:        common.ObjectStats{},
 	}

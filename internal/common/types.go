@@ -9,6 +9,7 @@ type RootObject struct {
 	Depth        int   // NOTE: largest depth of the document
 	MaxDepth     *int  // NOTE: max depth to analyze
 	NameLens     []int // NOTE: length of field names
+	MaxTypeLen   int   // NOTE: length of the longest type name
 	TotalObjects int64 // NOTE: total number of objects
 	Stats        ObjectStats
 }
@@ -18,6 +19,5 @@ type TypeStats struct {
 	Type    string       `json:"Type"`
 	Count   int64        `json:"Count"`
 	Props   *ObjectStats `json:"Props,omitempty"`
-	Items   *[]TypeStats `json:"Items,omitempty"`
 	Subtype *string      `json:"Subtype,omitempty"`
 }

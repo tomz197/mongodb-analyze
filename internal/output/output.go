@@ -40,7 +40,7 @@ func printHeader(root *common.RootObject) {
 		}
 	}
 
-	fmt.Printf(" %-*s%s | %-20s | %-10s | %-15s\n", root.NameLens[root.CurrDepth], "Name", fillerAfter, "Type", "Count", "Occurrence[%]")
+	fmt.Printf(" %-*s%s | %-*s | %-10s | %-15s\n", root.NameLens[root.CurrDepth], "Name", fillerAfter, root.MaxTypeLen, "Type", "Count", "Occurrence[%]")
 }
 
 func printSeparator(root *common.RootObject) {
@@ -51,7 +51,10 @@ func printSeparator(root *common.RootObject) {
 			filler += "-"
 		}
 	}
-	fmt.Printf("%s------------------------------------------------------\n", filler)
+	for j := 0; j < root.MaxTypeLen; j++ {
+		filler += "-"
+	}
+	fmt.Printf("%s----------------------------------\n", filler)
 }
 
 func printRow(root *common.RootObject, stats *common.ObjectStats) {
@@ -83,8 +86,8 @@ func printRow(root *common.RootObject, stats *common.ObjectStats) {
 	for _, kv := range getSorted(*stats) {
 		for _, stat := range kv.Val {
 			percent := float64(stat.Count) / float64(root.TotalObjects) * 100
-			fmt.Printf("%s%-*s%s | %-20s | %-10d | %-15.2f\n",
-				fillerBefore, root.NameLens[root.CurrDepth], kv.Key, fillerAfter, stat.Type, stat.Count, percent)
+			fmt.Printf("%s%-*s%s | %-*s | %-10d | %-15.2f\n",
+				fillerBefore, root.NameLens[root.CurrDepth], kv.Key, fillerAfter, root.MaxTypeLen, stat.Type, stat.Count, percent)
 
 			if stat.Props != nil {
 				printRow(root, stat.Props)
