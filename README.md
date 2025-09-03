@@ -1,6 +1,10 @@
 # MongoDB Analyze
 
+<<<<<<< HEAD
 MongoDB Analyze is a tool to analyze the MongoDB collection.
+=======
+MongoDB analyze is a tool to analyze the MongoDB collection.
+>>>>>>> a21cd5c5aaed6b71407540e21d426e3286973797
 It goes through entire collection and finds the data types of each field and the count of each data type.
 
 Results are displayed in a tabular format or json if flag is provided.
