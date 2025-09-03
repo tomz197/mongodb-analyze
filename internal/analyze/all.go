@@ -22,7 +22,7 @@ type AllOptions struct {
 func All(options AllOptions) (*common.RootObject, error) {
 	estimatedCount, err := options.Collection.EstimatedDocumentCount(options.Context)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get estimated document count: %v", err)
+		return nil, fmt.Errorf("failed to get estimated document count: %v", err)
 	}
 
 	// Find all documents
@@ -30,7 +30,11 @@ func All(options AllOptions) (*common.RootObject, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(options.Context)
+	defer func() {
+		if err := cursor.Close(options.Context); err != nil {
+			fmt.Println("failed to close cursor:", err)
+		}
+	}()
 
 	root := &common.RootObject{
 		Depth:        0,
@@ -46,7 +50,7 @@ func All(options AllOptions) (*common.RootObject, error) {
 	fmt.Println("\nEstimated object count:", estimatedCount)
 
 	for cursor.Next(options.Context) {
-		var document bson.Raw = cursor.Current
+		document := cursor.Current
 		root.TotalObjects++
 		printProgress(root.TotalObjects)
 

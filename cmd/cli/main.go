@@ -42,7 +42,11 @@ func main() {
 		defer func() {
 			fmt.Println("Result saved to", *flags.OutputFile)
 		}()
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				log.Printf("failed to close output file: %v", err)
+			}
+		}()
 	}
 
 	root, err := analyze.All(analyze.AllOptions{
@@ -50,6 +54,9 @@ func main() {
 		Collection: collection,
 		MaxDepth:   flags.MaxDepth,
 	})
+	if err != nil {
+		log.Fatalf("failed to analyze collection: %v", err)
+	}
 
 	if flags.PrintJSON {
 		output.PrintJSON(root, file)

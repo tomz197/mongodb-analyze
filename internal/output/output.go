@@ -16,7 +16,9 @@ func PrintTable(root *common.RootObject, out *os.File) {
 		...
 	*/
 
-	fmt.Fprintln(out, "MongoDB Document Analysis")
+	if _, err := fmt.Fprintln(out, "MongoDB Document Analysis"); err != nil {
+		fmt.Fprintln(os.Stderr, "failed to write header:", err)
+	}
 	printHeader(root, out)
 
 	printSeparator(root, out)
@@ -27,13 +29,21 @@ func PrintTable(root *common.RootObject, out *os.File) {
 
 	printSeparator(root, out)
 
-	fmt.Fprintf(out, "Total objects: %d\n", root.TotalObjects)
-	fmt.Fprintf(out, "Max depth: %d\n", root.Depth)
-	fmt.Fprintln(out)
+	if _, err := fmt.Fprintf(out, "Total objects: %d\n", root.TotalObjects); err != nil {
+		fmt.Fprintln(os.Stderr, "failed to write total objects:", err)
+	}
+	if _, err := fmt.Fprintf(out, "Max depth: %d\n", root.Depth); err != nil {
+		fmt.Fprintln(os.Stderr, "failed to write max depth:", err)
+	}
+	if _, err := fmt.Fprintln(out); err != nil {
+		fmt.Fprintln(os.Stderr, "failed to write newline:", err)
+	}
 }
 
 func printHeader(root *common.RootObject, out *os.File) {
-	fmt.Fprintf(out, " %-*s | %-*s | %-10s | %-15s\n", root.MaxNameLen+3, "Name", root.MaxTypeLen, "Type", "Count", "Occurrence[%]")
+	if _, err := fmt.Fprintf(out, " %-*s | %-*s | %-10s | %-15s\n", root.MaxNameLen+3, "Name", root.MaxTypeLen, "Type", "Count", "Occurrence[%]"); err != nil {
+		fmt.Fprintln(os.Stderr, "failed to write table header:", err)
+	}
 }
 
 func printSeparator(root *common.RootObject, out *os.File) {
@@ -47,7 +57,9 @@ func printSeparator(root *common.RootObject, out *os.File) {
 	for j := 0; j < root.MaxTypeLen; j++ {
 		filler += "-"
 	}
-	fmt.Fprintf(out, "%s----------------------------------\n", filler)
+	if _, err := fmt.Fprintf(out, "%s----------------------------------\n", filler); err != nil {
+		fmt.Fprintln(os.Stderr, "failed to write separator:", err)
+	}
 }
 
 func printRow(root *common.RootObject, stats *common.ObjectStats, out *os.File) {
@@ -67,8 +79,10 @@ func printRow(root *common.RootObject, stats *common.ObjectStats, out *os.File) 
 	for _, kv := range getSorted(*stats) {
 		for _, stat := range kv.Val {
 			percent := float64(stat.GetCount()) / float64(root.TotalObjects) * 100
-			fmt.Fprintf(out, "%s%-*s | %-*s | %-10d | %-15.2f\n",
-				fillerBefore, root.MaxNameLen-(3*(root.CurrDepth+1)), kv.Key, root.MaxTypeLen, stat.TypeDisplay(), stat.GetCount(), percent)
+			if _, err := fmt.Fprintf(out, "%s%-*s | %-*s | %-10d | %-15.2f\n",
+				fillerBefore, root.MaxNameLen-(3*(root.CurrDepth+1)), kv.Key, root.MaxTypeLen, stat.TypeDisplay(), stat.GetCount(), percent); err != nil {
+				fmt.Fprintln(os.Stderr, "failed to write row:", err)
+			}
 
 			if props := stat.GetProps(); props != nil {
 				printRow(root, props, out)
@@ -98,9 +112,15 @@ func getSorted[T any](m map[string]T) []kv[T] {
 }
 
 func PrintJSON(anal *common.RootObject, out *os.File) {
-	marshalled, _ := json.MarshalIndent(anal.Stats, "", "  ")
+	marshalled, err := json.MarshalIndent(anal.Stats, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "failed to marshal JSON:", err)
+		return
+	}
 
-	fmt.Fprintln(out, string(marshalled))
+	if _, err := fmt.Fprintln(out, string(marshalled)); err != nil {
+		fmt.Fprintln(os.Stderr, "failed to write JSON:", err)
+	}
 }
 
 func GetPrintProgress(total int64) (func(int64), func(int64)) {
