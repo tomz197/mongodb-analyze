@@ -1,12 +1,43 @@
 # MongoDB Analyze
 
-MongoDB Analyze is a tool to analyze the MongoDB collection.
-It goes through entire collection and finds the data types of each field and the count of each data type.
+Analyze a MongoDB collection to discover the data types present for every field (including nested fields), how often each type occurs, and quickly identify inconsistencies across documents.
 
-Results are displayed in a tabular format or json if flag is provided.
+### What it does
+- Scans the entire collection
+- Tracks per-field data types with counts and occurrence percentages
+- Supports nested fields to a configurable depth
+- Outputs pretty table or JSON
+- Can write results to a file
 
-Example:
+## Requirements
+- Go 1.23
+
+## Install
+### Using go install
 ```bash
+go install github.com/tomz197/mongodb-analyze/cmd/cli@latest
+```
+This installs the `cli` binary on your `GOBIN`/`GOPATH/bin`.
+
+### From source
+```bash
+git clone https://github.com/tomz197/mongodb-analyze.git
+cd mongodb-analyze
+make build
+```
+The binary will be built at `./bin/cli`.
+
+## Quick start
+```bash
+./bin/cli -collection <collection_name>
+```
+Specify connection details if needed:
+```bash
+./bin/cli -uri "mongodb://localhost:27017" -db test -collection <collection_name>
+```
+
+## Example output (table)
+```text
  Name            | Type                          | Count      | Occurrence[%]
 -------------------------------------------------------------------------------
  _id             | objectID                      | 9653       | 100.00
@@ -35,42 +66,53 @@ Example:
  tags            | array[string]                 | 6155       | 63.76
  tags            | array[]                       | 318        | 3.29
 ```
+
 Where:
 - Name: Field name
-   - ` > `: Nested field (embedded document)
-   - arrays are displayed as `array[type1, type2, ...]`
+  - ` > ` denotes a nested field (embedded document)
+  - arrays are displayed as `array[type1, type2, ...]`
 - Type: Data type of the field
-- Count: Number of objects that have this field
-- Occurrence[%]: Percentage of how many objects have this field
+- Count: Number of documents that contain this field/type
+- Occurrence[%]: Percentage of documents that contain this field/type
 
-From the above example, we can for example see that the field `tag` is inconsistent, it is sometimes a string and sometimes an array and was named `tags` in some cases.
+From the above example, `tag` is inconsistent across documents: sometimes a string, sometimes an array, and there are also fields named `tags`.
 
-## Requirements
-- Go 1.23
-
-## Usage
-1. Clone the repository
-2. Install the requirements
+## JSON output
+Produce JSON instead of a table:
 ```bash
-go get
+./bin/cli -collection <collection_name> -json
 ```
-3. Build the tool
-```bash
-make build
-```
-4. Run the tool
-```bash
-./bin/cli -collection <collection_name>
+Small example of the JSON shape:
+```json
+{
+  "name": "<collection>",
+  "count": 9653,
+  "types": [
+    { "type": "objectID", "count": 9653, "name": "_id" }
+  ],
+  "children": [
+    {
+      "name": "git",
+      "types": [{ "type": "embedded document", "count": 6502 }],
+      "children": [
+        { "name": "branch", "types": [{ "type": "string", "count": 6500 }] }
+      ]
+    }
+  ]
+}
 ```
 
-### Flags:
+## Flags
 
-Required flags:
-- `-collection`: Name of the collection to analyze
+| Flag | Default | Description | Required |
+|------|---------|-------------|----------|
+| `-collection` | — | Name of the MongoDB collection to analyze | Yes |
+| `-uri` | `mongodb://localhost:27017` | MongoDB connection URI | No |
+| `-db` | `test` | MongoDB database name | No |
+| `-json` | `false` | Print results in JSON instead of a table | No |
+| `-depth` | `0` | Maximum depth to analyze (0 for all levels) | No |
+| `-output` | `stdout` | Output file path; if set, also prints "Result saved to ..." | No |
 
-Optional flags:
-- `-uri`: MongoDB URI, default is `mongodb://localhost:27017`
-- `-db`: Name of the database to analyze, default is `test`
-- `-json`: Output the results in json format
-- `-depth`: Maximum depth to analyze nested fields
-- `-output`: Output file name, default is `stdout`
+Notes:
+- `-depth 0` means no limit; the entire embedded document tree is analyzed.
+- When `-output` is provided, results are written to the file. If omitted, output goes to stdout.
