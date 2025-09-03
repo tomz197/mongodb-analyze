@@ -137,7 +137,9 @@ func GetPrintProgress(total int64) (func(int64), func(int64)) {
 		if len(bar) < 20 {
 			bar += ">"
 		}
-		fmt.Fprintf(os.Stdout, "\r Progress [%-20s] %d%% (%d/%d)", bar, processed/percOfDocs, processed, total)
+		if _, err := fmt.Fprintf(os.Stdout, "\r Progress [%-20s] %d%% (%d/%d)", bar, processed/percOfDocs, processed, total); err != nil {
+			fmt.Fprintln(os.Stderr, "failed to write progress:", err)
+		}
 	}
 
 	return func(processed int64) {
