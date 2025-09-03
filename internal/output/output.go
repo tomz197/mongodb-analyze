@@ -66,12 +66,12 @@ func printRow(root *common.RootObject, stats *common.ObjectStats, out *os.File) 
 
 	for _, kv := range getSorted(*stats) {
 		for _, stat := range kv.Val {
-			percent := float64(stat.Count) / float64(root.TotalObjects) * 100
+			percent := float64(stat.GetCount()) / float64(root.TotalObjects) * 100
 			fmt.Fprintf(out, "%s%-*s | %-*s | %-10d | %-15.2f\n",
-				fillerBefore, root.MaxNameLen-(3*(root.CurrDepth+1)), kv.Key, root.MaxTypeLen, stat.Type, stat.Count, percent)
+				fillerBefore, root.MaxNameLen-(3*(root.CurrDepth+1)), kv.Key, root.MaxTypeLen, stat.TypeDisplay(), stat.GetCount(), percent)
 
-			if stat.Props != nil {
-				printRow(root, stat.Props, out)
+			if props := stat.GetProps(); props != nil {
+				printRow(root, props, out)
 			}
 		}
 	}
@@ -105,6 +105,9 @@ func PrintJSON(anal *common.RootObject, out *os.File) {
 
 func GetPrintProgress(total int64) (func(int64), func(int64)) {
 	percOfDocs := total / 100
+	if percOfDocs == 0 {
+		percOfDocs = 1
+	}
 
 	printProgress := func(processed int64) {
 		bar := ""

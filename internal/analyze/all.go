@@ -21,6 +21,9 @@ type AllOptions struct {
 
 func All(options AllOptions) (*common.RootObject, error) {
 	estimatedCount, err := options.Collection.EstimatedDocumentCount(options.Context)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get estimated document count: %v", err)
+	}
 
 	// Find all documents
 	cursor, err := options.Collection.Find(options.Context, bson.M{})
@@ -49,18 +52,18 @@ func All(options AllOptions) (*common.RootObject, error) {
 
 		elements, err := document.Elements()
 		if err != nil {
-			return root, fmt.Errorf("Failed to get values from document: %v", err)
+			return root, fmt.Errorf("failed to get values from document: %v", err)
 		}
 
 		err = analyze(root, elements, &root.Stats)
 		if err != nil {
-			return root, fmt.Errorf("Failed to analyze document: %v", err)
+			return root, fmt.Errorf("failed to analyze document: %v", err)
 		}
 	}
 	finished(root.TotalObjects)
 
 	if cursor.Err() != nil {
-		return root, fmt.Errorf("Cursor error: %v", cursor.Err())
+		return root, fmt.Errorf("cursor error: %v", cursor.Err())
 	}
 
 	return root, nil

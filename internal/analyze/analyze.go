@@ -2,14 +2,11 @@ package analyze
 
 import (
 	"errors"
-	"fmt"
-	"sort"
 
 	"github.com/tomz197/mongodb-analyze/internal/common"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// Custom errors
 var (
 	ErrInvalidDocument = errors.New("invalid document")
 )
@@ -30,77 +27,147 @@ func analyze(root *common.RootObject, elements []bson.RawElement, stats *common.
 
 	for _, elm := range elements {
 		key := elm.Key()
-		t := elm.Value().Type.String()
+		val := elm.Value()
 
-		t, err := handleBinarySubtype(elm)
-		if err != nil {
-			return ErrInvalidDocument
-		}
-
-		t, err = handleArray(elm)
-		if err != nil {
-			return ErrInvalidDocument
-		}
-
-		if _, ok := (*stats)[key]; !ok {
-			(*stats)[key] = []common.TypeStats{}
-
-			if len(key) > root.MaxNameLen {
-				root.MaxNameLen = len(key)
-			}
-		}
-
-		found := false
-		for i, ts := range (*stats)[key] {
-			if ts.Type == t {
-				st := &(*stats)[key][i]
-				newProps, err := handleEmbeddedDocument(root, elm, st.Props)
-				if err != nil {
-					return err
-				}
-
-				st.Count++
-				st.Props = newProps
-				found = true
-				break
-			}
-		}
-		if found {
-			continue
-		}
-
-		if len(t) > root.MaxTypeLen {
-			root.MaxTypeLen = len(t)
-		}
-
-		var props *common.ObjectStats = nil
-		// var items *ObjectStats = nil
-
-		props, err = handleEmbeddedDocument(root, elm, nil)
-		if err != nil {
+		if err := updateTypeStatsForField(root, key, val, stats); err != nil {
 			return err
 		}
-
-		(*stats)[key] = append((*stats)[key], common.TypeStats{
-			Type:  t,
-			Count: 1,
-			Props: props,
-		})
 	}
 
 	return nil
 }
 
-func handleEmbeddedDocument(root *common.RootObject, element bson.RawElement, props *common.ObjectStats) (*common.ObjectStats, error) {
-	if element.Value().Type != bson.TypeEmbeddedDocument {
+func updateTypeStatsForField(root *common.RootObject, key string, val bson.RawValue, stats *common.ObjectStats) error {
+	if _, ok := (*stats)[key]; !ok {
+		(*stats)[key] = []common.TypeStat{}
+		if len(key) > root.MaxNameLen {
+			root.MaxNameLen = len(key)
+		}
+	}
+
+	switch val.Type {
+	case bson.TypeEmbeddedDocument:
+		var docStat *common.DocumentTypeStat
+		for _, ts := range (*stats)[key] {
+			if v, ok := ts.(*common.DocumentTypeStat); ok {
+				docStat = v
+				break
+			}
+		}
+		if docStat == nil {
+			docStat = common.NewDocumentTypeStat()
+			(*stats)[key] = append((*stats)[key], docStat)
+		}
+		docStat.Increment()
+		newProps, err := descendIntoDocument(root, val, &docStat.Props)
+		if err != nil {
+			return err
+		}
+		docStat.Props = *newProps
+		if l := len(docStat.TypeDisplay()); l > root.MaxTypeLen {
+			root.MaxTypeLen = l
+		}
+
+	case bson.TypeArray:
+		var arrStat *common.ArrayTypeStat
+		for _, ts := range (*stats)[key] {
+			if v, ok := ts.(*common.ArrayTypeStat); ok {
+				arrStat = v
+				break
+			}
+		}
+		if arrStat == nil {
+			arrStat = common.NewArrayTypeStat()
+			(*stats)[key] = append((*stats)[key], arrStat)
+		}
+		arrStat.Increment()
+		arr, ok := val.ArrayOK()
+		if !ok {
+			return ErrInvalidDocument
+		}
+		elements, err := arr.Elements()
+		if err != nil {
+			return err
+		}
+		for _, a := range elements {
+			av := a.Value()
+			name := elementTypeDisplay(av)
+			arrStat.Items[name] = arrStat.Items[name] + 1
+			if av.Type == bson.TypeEmbeddedDocument {
+				if arrStat.ItemProps == nil {
+					mp := common.ObjectStats{}
+					arrStat.ItemProps = &mp
+				}
+				newProps, err := descendIntoDocument(root, av, arrStat.ItemProps)
+				if err != nil {
+					return err
+				}
+				*arrStat.ItemProps = *newProps
+			}
+		}
+		if l := len(arrStat.TypeDisplay()); l > root.MaxTypeLen {
+			root.MaxTypeLen = l
+		}
+
+	case bson.TypeBinary:
+		subtype, _, ok := val.BinaryOK()
+		if !ok {
+			return ErrInvalidDocument
+		}
+		var binStat *common.BinaryTypeStat
+		for _, ts := range (*stats)[key] {
+			if v, ok := ts.(*common.BinaryTypeStat); ok {
+				if v.Subtype == subtype {
+					binStat = v
+					break
+				}
+			}
+		}
+		if binStat == nil {
+			subtypeName := lookupBinarySubtypeName(subtype)
+			binStat = common.NewBinaryTypeStat(subtype, subtypeName)
+			(*stats)[key] = append((*stats)[key], binStat)
+		}
+		binStat.Increment()
+		if l := len(binStat.TypeDisplay()); l > root.MaxTypeLen {
+			root.MaxTypeLen = l
+		}
+
+	default:
+		typeName := val.Type.String()
+		var sc *common.ScalarTypeStat
+		for _, ts := range (*stats)[key] {
+			if v, ok := ts.(*common.ScalarTypeStat); ok {
+				if v.GetType() == typeName {
+					sc = v
+					break
+				}
+			}
+		}
+		if sc == nil {
+			sc = common.NewScalarTypeStat(typeName)
+			(*stats)[key] = append((*stats)[key], sc)
+		}
+		sc.Increment()
+		if l := len(sc.TypeDisplay()); l > root.MaxTypeLen {
+			root.MaxTypeLen = l
+		}
+	}
+
+	return nil
+}
+
+func descendIntoDocument(root *common.RootObject, value bson.RawValue, props *common.ObjectStats) (*common.ObjectStats, error) {
+	if value.Type != bson.TypeEmbeddedDocument {
 		return nil, nil
 	}
 
 	if props == nil {
-		props = &common.ObjectStats{}
+		mp := common.ObjectStats{}
+		props = &mp
 	}
 
-	doc, ok := element.Value().DocumentOK()
+	doc, ok := value.DocumentOK()
 	if !ok {
 		return nil, ErrInvalidDocument
 	}
@@ -110,8 +177,7 @@ func handleEmbeddedDocument(root *common.RootObject, element bson.RawElement, pr
 		return nil, err
 	}
 
-	err = analyze(root, elements, props)
-	if err != nil {
+	if err := analyze(root, elements, props); err != nil {
 		return nil, err
 	}
 
@@ -132,60 +198,20 @@ var bsonBinarySubtypes = map[byte]string{
 	0x80: "User defined custom data",
 }
 
-func handleBinarySubtype(element bson.RawElement) (string, error) {
-	val := element.Value()
-	if val.Type != bson.TypeBinary {
-		return val.Type.String(), nil
+func lookupBinarySubtypeName(subtype byte) string {
+	if s, ok := bsonBinarySubtypes[subtype]; ok {
+		return s
 	}
-
-	subtype, _, ok := val.BinaryOK()
-	if !ok {
-		return "", ErrInvalidDocument
-	}
-
-	subtypeStr, ok := bsonBinarySubtypes[subtype]
-	if !ok {
-		return "Unknown", nil
-	}
-
-	return val.Type.String() + " - " + subtypeStr, nil
+	return "Unknown"
 }
 
-func handleArray(arr bson.RawElement) (string, error) {
-	val := arr.Value()
-	if val.Type != bson.TypeArray {
-		return val.Type.String(), nil
-	}
-
-	arrRaw, ok := val.ArrayOK()
-	if !ok {
-		return "", ErrInvalidDocument
-	}
-
-	elements, err := arrRaw.Elements()
-	if err != nil {
-		return "", err
-	}
-
-	types := make(map[string]int)
-	for _, elm := range elements {
-		t := elm.Value().Type.String()
-		types[t]++
-	}
-
-	var keys []string
-	for k := range types {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var res string
-	for i, k := range keys {
-		res += k
-		if i < len(keys)-1 {
-			res += ", "
+func elementTypeDisplay(v bson.RawValue) string {
+	if v.Type == bson.TypeBinary {
+		subtype, _, ok := v.BinaryOK()
+		if !ok {
+			return v.Type.String()
 		}
+		return v.Type.String() + " - " + lookupBinarySubtypeName(subtype)
 	}
-
-	return fmt.Sprintf("%s[%s]", arr.Value().Type.String(), res), nil
+	return v.Type.String()
 }
