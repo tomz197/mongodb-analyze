@@ -4,6 +4,17 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name (e.g., v1.2.3)"
+        required: true
+        type: string
+      prerelease:
+        description: "Mark release as pre-release"
+        required: false
+        default: "false"
+        type: string
 
 permissions:
   contents: write
@@ -12,18 +23,25 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    if: >-
-      ${{ github.event.workflow_run.conclusion == 'success' &&
-          github.event.workflow_run.event == 'push' &&
-          startsWith(github.event.workflow_run.head_branch, 'v') }}
+    if: ${{ github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release (from CI)
+        if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && startsWith(github.event.workflow_run.head_branch, 'v') }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.workflow_run.head_branch }}
           name: ${{ github.event.workflow_run.head_branch }}
           prerelease: ${{ contains(github.event.workflow_run.head_branch, '-') }}
+          generate_release_notes: true
+
+      - name: Create GitHub Release (manual)
+        if: ${{ github.event_name == 'workflow_dispatch' && startsWith(inputs.tag, 'v') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
+          prerelease: ${{ inputs.prerelease == 'true' || contains(inputs.tag, '-') }}
           generate_release_notes: true
