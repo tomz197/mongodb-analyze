@@ -1,6 +1,6 @@
-# mongodb Analyze
+# MongoDB Analyze
 
-MongoDB analyze(or shortly ✨***mongo-anal***✨) is a tool to analyze the MongoDB collection.
+MongoDB Analyze is a tool to analyze the MongoDB collection.
 It goes through entire collection and finds the data types of each field and the count of each data type.
 
 Results are displayed in a tabular format or json if flag is provided.
@@ -45,18 +45,10 @@ Where:
 
 From the above example, we can for example see that the field `tag` is inconsistent, it is sometimes a string and sometimes an array and was named `tags` in some cases.
 
-## Not implemented
-> [!CAUTION]
-> At the moment the tool does not correctly analyzes following types:
-> - Array of objects(Embedded document): it will not g1o through the fields of the embedded document
-
 ## Requirements
 - Go 1.23
 
 ## Usage
-> [!WARNING]
-> The tool is still in development and is not easelly usable yet.
-
 1. Clone the repository
 2. Install the requirements
 ```bash
