@@ -187,15 +187,15 @@ func descendIntoDocument(root *common.RootObject, value bson.RawValue, props *co
 var bsonBinarySubtypes = map[byte]string{
 	0x00: "Generic binary subtype",
 	0x01: "Function",
-	0x02: "Binary (old)",
-	0x03: "UUID (old)",
+	0x02: "Binary (Old)",
+	0x03: "UUID (Old)",
 	0x04: "UUID",
 	0x05: "MD5",
 	0x06: "Encrypted BSON value",
-	0x07: "Compressed time series data",
-	0x08: "Sensitive data",
-	0x09: "Vector data",
-	0x80: "User defined custom data",
+	0x07: "Compressed BSON column",
+	0x08: "Sensitive",
+	0x09: "Vector",
+	0x80: "User defined",
 }
 
 func lookupBinarySubtypeName(subtype byte) string {
